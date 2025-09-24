@@ -3,7 +3,7 @@ HEAD
 
 A comprehensive multi-channel fluorescence microscopy analysis platform for quantitative cellular imaging and colocalization studies.
 
-![FluoroQuant Interface](screenshot.png)
+![FluoroQuant Interface](DemoImg1.png)
 
 ## Features
 
