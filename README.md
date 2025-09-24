@@ -1,9 +1,9 @@
 HEAD
 # FluoroQuant v2.0
 
-A comprehensive multi-channel fluorescence microscopy analysis platform for quantitative cellular imaging and colocalization studies.
+A comprehensive multi-channel fluorescence microscopy analysis platform for quantitative cellular imaging and colocalization studies. Upgrades and fixes are being made.
 
-![FluoroQuant Interface](screenshot.png)
+![FluoroQuant Interface](DemoImg1.png)
 
 ## Features
 
@@ -148,6 +148,3 @@ Sean Carmody, 2025
 https://github.com/seanpcarmody/fluoroquant
 ```
 =======
-# FluoroQuant
-Dynamic image analysis program built for multi-channel microscopy images. Capable of both batch processing and individual image processing with live and integrated image transformation previews. Provides quantitative analyses for selected microscopy channels.
-
