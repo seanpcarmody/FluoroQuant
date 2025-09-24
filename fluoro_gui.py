@@ -277,7 +277,6 @@ class FluoroGUI:
                                    command=self.on_mode_change)
         batch_btn.pack(side='left', padx=(10, 0))
         
-        # Batch controls (initially hidden)
         self.batch_frame = ttk.Frame(channel_frame)
         self.batch_button = ttk.Button(self.batch_frame,
                                       text="📁 Select Folder",
@@ -363,7 +362,7 @@ class FluoroGUI:
                 # Run batch processing
                 self.app.start_batch_processing()
             else:
-                # Check if we have active channels
+                # Check for active channels
                 active_channels = [ch for ch, active in self.app.active_channels.items() if active]
                 if not active_channels:
                     self.show_warning("No active channels selected. Load and activate channels first.")
@@ -398,7 +397,6 @@ class FluoroGUI:
         preview_combo.bind('<<ComboboxSelected>>', 
                         lambda e: self.update_preview_display(self.app))
         
-        # UNIFIED PROCESSING BUTTON - adapts based on mode
         self.process_btn = ttk.Button(control_frame,
                                     text="⚡ Process",
                                     command=self.unified_process_command,
@@ -411,11 +409,9 @@ class FluoroGUI:
                     text="Auto-update",
                     variable=self.auto_update_var).pack(side='left')
         
-        # Create matplotlib figure (rest remains the same)
         self.fig = plt.figure(figsize=(12, 7), facecolor=self.colors['panel'])
         self.axes = self.fig.subplots(2, 3)
         
-        # Configure axes for dark theme
         for ax_row in self.axes:
             for ax in ax_row:
                 ax.set_facecolor(self.colors['bg'])
@@ -642,7 +638,6 @@ class FluoroGUI:
     
     def create_export_controls(self, parent):
         """Create export controls"""
-        # Formats
         format_frame = ttk.LabelFrame(parent, text="Export Formats", padding=15)
         format_frame.pack(fill='x', padx=5, pady=5)
         
@@ -658,7 +653,6 @@ class FluoroGUI:
         ttk.Checkbutton(format_frame, text="Images", variable=self.export_images).pack(anchor='w')
         ttk.Checkbutton(format_frame, text="Overlays", variable=self.export_overlays).pack(anchor='w')
         
-        # Export buttons - RESTORED
         button_frame = ttk.Frame(parent)
         button_frame.pack(fill='x', padx=5, pady=10)
         
@@ -728,7 +722,7 @@ class FluoroGUI:
             value_label = ttk.Label(frame, text=f"{variable.get():.1f}", width=8)
         value_label.pack(side='right')
         
-        # Update label when value changes (but don't process yet)
+        # Update label when value changes 
         def update_label(*args):
             if isinstance(variable, tk.IntVar):
                 value_label.config(text=str(int(variable.get())))
@@ -737,7 +731,7 @@ class FluoroGUI:
         
         variable.trace('w', update_label)
         
-        # Only process on mouse release, not during dragging
+        # Only process on mouse release
         scale.bind('<ButtonRelease-1>', lambda e: self.on_parameter_change())
     
     # Event handlers
@@ -767,7 +761,6 @@ class FluoroGUI:
         if self.processing_mode.get() == 'batch':
             self.batch_frame.pack(fill='x', pady=(10, 0))
             self.progress_frame.pack(fill='x', pady=(10, 0))
-            # Update button text for batch mode
             if hasattr(self, 'process_btn'):
                 if hasattr(self.app, 'detected_groups') and self.app.detected_groups:
                     self.process_btn.config(text="🚀 Process Batch", state='normal')
@@ -776,7 +769,6 @@ class FluoroGUI:
         else:
             self.batch_frame.pack_forget()
             self.progress_frame.pack_forget()
-            # Update button text for single image mode
             if hasattr(self, 'process_btn'):
                 active_count = sum(1 for active in self.app.active_channels.values() if active)
                 if active_count > 0:
@@ -833,17 +825,12 @@ class FluoroGUI:
         
         print(f"Updating preview display to: {view}")
         
-        # Clear axes more carefully to preserve matplotlib state
         for i, ax_row in enumerate(self.axes):
             for j, ax in enumerate(ax_row):
                 # Store the current figure and position info before clearing
                 fig = ax.figure
-                pos = ax.get_position()
-                
-                # Clear content but preserve axis structure
+                pos = ax.get_position()                
                 ax.clear()
-                
-                # Restore essential axis properties
                 ax.set_facecolor(self.colors['bg'])
                 ax.set_position(pos)
         
@@ -857,17 +844,13 @@ class FluoroGUI:
         except:
             pass
         
-        # More robust canvas update sequence
         try:
-            # Force matplotlib to process all pending draw commands
             self.fig.canvas.flush_events()
-            # Redraw the entire figure
             self.fig.canvas.draw()
-            # Update the tkinter widget
             self.canvas.draw()
         except Exception as e:
             print(f"Canvas draw error (non-critical): {e}")
-            # Fallback - just do basic draw
+            # Fallback
             try:
                 self.canvas.draw_idle()
             except:
@@ -937,10 +920,8 @@ class FluoroGUI:
         else:
             ax.axis('off')
         
-        # HISTOGRAM - Completely rewritten to be more robust
         ax_hist = self.axes[1, 1]
         
-        # Complete reset of the histogram axis
         ax_hist.clear()
         ax_hist.cla()
         
@@ -1092,7 +1073,6 @@ class FluoroGUI:
         # Convert grayscale to RGB
         rgb_image = np.stack([image, image, image], axis=2)
         
-        # Apply channel-specific color tinting
         if channel == 'ch1':  # Red channel
             rgb_image[:, :, [1, 2]] *= 0.3  # Reduce green and blue
         elif channel == 'ch2':  # Green channel  
@@ -1104,8 +1084,6 @@ class FluoroGUI:
 
     def display_single_pair_statistics(self, app, pair):
         """Display statistics for a single channel pair in remaining space"""
-        # Use any remaining subplot space for statistics
-        # This could be axes[0,2], [1,2] or create text overlay
         ch1, ch2 = pair
         pair_key = f"{ch1}_{ch2}"
         
@@ -1141,7 +1119,6 @@ class FluoroGUI:
 
     def display_multiple_pair_statistics(self, app, pairs):
         """Display statistics for multiple channel pairs"""
-        # Create a compact statistics display for multiple pairs
         stats_text = "Multi-Channel Analysis\n\n"
         
         for ch1, ch2 in pairs:
@@ -1179,7 +1156,6 @@ class FluoroGUI:
         if params['pairs']['ch2_ch3'] and 'ch2' in active and 'ch3' in active:
             selected_pairs.append(('ch2', 'ch3'))
         
-        # If no pairs selected or no multichannel results, show standard composite
         if not selected_pairs or not hasattr(app, 'multichannel_results') or not app.multichannel_results:
             self.display_standard_composite(app, active)
             return
@@ -1206,7 +1182,6 @@ class FluoroGUI:
                             color=self.colors['fg'], fontsize=10)
             ax_main.axis('on')
         
-        # Show ALL loaded channels in individual displays (top row remaining slots)
         display_positions = [(0, 0), (0, 2)]  # Skip middle slot used for colocalization
         
         for i, ch in enumerate(active[:2]):  # Show up to 2 individual channels in top row
@@ -1252,7 +1227,6 @@ class FluoroGUI:
                         ax.set_title(self.channel_names[ch], color=self.colors['fg'], fontsize=9)
                 ax.axis('on')
         
-        # Show statistics for ALL selected pairs (if multiple pairs selected)
         if len(selected_pairs) > 1:
             self.display_multiple_pair_statistics(app, selected_pairs)
         else:
@@ -1272,7 +1246,6 @@ class FluoroGUI:
             mask1 = mask1[:min_h, :min_w]
             mask2 = mask2[:min_h, :min_w]
         
-        # Start with channel 1 image as grayscale background
         overlay = np.stack([img1, img1, img1], axis=2)  # RGB from grayscale
         
         # Channel 1 objects in cyan (exclusive regions)
@@ -1480,8 +1453,7 @@ Features:
 • Colocalization analysis
 • Batch processing with pattern detection
 • Comprehensive export options
-
-© 2024 - Developed with Claude"""
+"""
         
         messagebox.showinfo("About FluoroQuant", about_text)
     

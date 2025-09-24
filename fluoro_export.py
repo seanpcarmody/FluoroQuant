@@ -233,7 +233,7 @@ class ResultExporter:
         # Colocalization overlays
         active = [ch for ch in ['ch1', 'ch2', 'ch3'] if active_channels.get(ch, False)]
         if len(active) >= 2:
-            # Create pairwise colocalization overlays
+            # Pairwise colocalization overlays
             pairs = [('ch1', 'ch2'), ('ch1', 'ch3'), ('ch2', 'ch3')]
             
             for ch1, ch2 in pairs:
@@ -279,25 +279,20 @@ class ResultExporter:
             mask1 = mask1[:min_h, :min_w]
             mask2 = mask2[:min_h, :min_w]
         
-        # Start with channel 1 image as grayscale background
-        background = cv2.cvtColor((img1 * 255).astype(np.uint8), cv2.COLOR_GRAY2RGB)
-        
-        # Create overlay image
+        background = cv2.cvtColor((img1 * 255).astype(np.uint8), cv2.COLOR_GRAY2RGB)        
         overlay = background.copy()
         
-        # Channel 1 objects in cyan (where mask1 is True but not overlapping)
-        ch1_only = mask1 & ~mask2  # Channel 1 exclusive regions
+        # Ch 1 objects in cyan 
+        ch1_only = mask1 & ~mask2  
         overlay[ch1_only] = [0, 255, 255]  # Cyan
         
-        # Overlapping regions in bright red
+        # Overlap in red
         overlap = mask1 & mask2
         overlay[overlap] = [255, 0, 0]  # Red
         
-        # Optional: Channel 2 only regions in blue (for complete visualization)
         ch2_only = mask2 & ~mask1
         overlay[ch2_only] = [0, 100, 255]  # Light blue
         
-        # Blend overlay with background 
         final_overlay = cv2.addWeighted(background, 0.3, overlay, 0.7, 0)
         
         return final_overlay
@@ -308,7 +303,6 @@ class ResultExporter:
         legend_width = 200
         legend = np.zeros((legend_height, legend_width, 3), dtype=np.uint8)
         
-        # Color blocks
         legend[10:25, 10:30] = [0, 255, 255]  # Cyan - Ch1 only
         legend[30:45, 10:30] = [255, 0, 0]    # Red - Overlap  
         legend[50:65, 10:30] = [0, 100, 255]  # Blue - Ch2 only

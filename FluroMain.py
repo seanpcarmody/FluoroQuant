@@ -39,8 +39,6 @@ class FluoroQuant:
         self.analyzer = MultiChannelAnalyzer()
         self.batch_processor = BatchProcessor()
         self.exporter = ResultExporter()
-        
-        # Create GUI - this must be done after other components
         self.gui = FluoroGUI(self)
         
         # Data storage for loaded images
@@ -161,7 +159,7 @@ class FluoroQuant:
                     )
                     self.labeled_objects[channel] = labeled
             
-            # Run analysis only on full process (not during slider adjustments)
+            # Run analysis only on full process
             if full_process:
                 self.analyze_results()
                 self.gui.update_statistics(self.quantitative_results, self.multichannel_results)
@@ -196,7 +194,7 @@ class FluoroQuant:
             if active_count > 1:
                 print("Performing multi-channel analysis...")
                 
-                # Debug: Check shapes of active channels
+                # Debug
                 for ch in ['ch1', 'ch2', 'ch3']:
                     if self.active_channels[ch]:
                         if self.processed_channels[ch] is not None:
@@ -370,7 +368,6 @@ class FluoroQuant:
                 self.gui.show_warning("No channels were available for processing.")
                 return
             
-            # Run analysis only on full process (not during slider adjustments)
             if full_process:
                 self.analyze_results()
                 self.gui.update_statistics(self.quantitative_results, self.multichannel_results)
@@ -394,10 +391,8 @@ class FluoroQuant:
             if export_type == 'current':
                 # Export current single image results
                 if not self.quantitative_results and not self.multichannel_results:
-                    # Try to process first if no results exist
                     if any(self.active_channels.values()):
                         self.process_current_image()
-                        # Check again after processing
                         if not self.quantitative_results and not self.multichannel_results:
                             self.gui.show_warning("No results to export. Make sure images are loaded and processed.")
                             return
@@ -405,7 +400,6 @@ class FluoroQuant:
                         self.gui.show_warning("No results to export. Load and process images first.")
                         return
                 
-                # Get save location
                 filepath = self.gui.get_save_filepath()
                 if not filepath:
                     return
