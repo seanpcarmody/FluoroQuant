@@ -1,5 +1,5 @@
 """
-FluoroQuant - Consolidated Batch Processing Module
+FluoroQuant - Batch Processing Module
 """
 
 import os
