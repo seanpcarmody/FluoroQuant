@@ -239,10 +239,6 @@ If you use FluoroQuant in your research, please cite:
 }
 ```
 
-## License
-
-License to be determined. See repository for current licensing status.
-
 ## Support
 
 For technical questions and bug reports, please use the GitHub issue tracker. For research collaborations or custom analysis workflows, contact developer at scarmody@seas.upenn.edu .
