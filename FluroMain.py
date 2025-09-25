@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
 FluoroQuant - Multi-Channel Fluorescence Analysis
-Main application file - FIXED VERSION
 Version 2.0
 """
 
