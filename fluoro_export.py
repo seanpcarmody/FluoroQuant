@@ -63,10 +63,10 @@ class ResultExporter:
         return exported_files
     
     def export_csv_results(self, base_path, single_results, multi_results):
-        """Export results as CSV files"""
+        """Export results as CSV files with comprehensive analysis data"""
         exported_files = []
         
-        # Export single channel object data
+        # Export single channel object data (unchanged)
         for channel, results in single_results.items():
             if results and results.get('objects'):
                 df = pd.DataFrame(results['objects'])
@@ -74,7 +74,7 @@ class ResultExporter:
                 df.to_csv(filename, index=False)
                 exported_files.append(filename)
         
-        # Export channel summaries
+        # ENHANCED: Export comprehensive channel summaries
         if single_results:
             summary_data = []
             for channel, results in single_results.items():
@@ -82,13 +82,14 @@ class ResultExporter:
                     summary = {
                         'channel': channel,
                         'total_objects': results['total_objects'],
-                        'total_area': results['total_area'],
+                        'total_area_pixels': results['total_area'],
                         'coverage_percent': results['coverage_percent'],
                         'mean_object_area': results['mean_object_area'],
+                        'std_object_area': results.get('std_object_area', 0),
                         'total_fluorescence': results['total_fluorescence'],
                         'mean_intensity': results['mean_intensity'],
                         'background_intensity': results.get('background_intensity', 0),
-                        'signal_to_background': results.get('signal_to_background', 0)
+                        'signal_to_background_ratio': results.get('signal_to_background', 0)
                     }
                     summary_data.append(summary)
             
@@ -98,29 +99,93 @@ class ResultExporter:
                 df_summary.to_csv(summary_file, index=False)
                 exported_files.append(summary_file)
         
-        # Export multi-channel results
+        # ENHANCED: Export detailed multi-channel results
         if multi_results:
-            multi_data = []
-            for pair_key, results in multi_results.items():
-                row = {'channel_pair': pair_key}
-                
-                # Add colocalization data
-                if 'colocalization' in results:
-                    row.update(results['colocalization'])
-                
-                # Add distance data
-                if 'distance_analysis' in results:
-                    row.update(results['distance_analysis'])
-                
-                multi_data.append(row)
+            # Colocalization summary
+            coloc_data = []
+            distance_data = []
+            overlap_data = []
             
-            if multi_data:
-                df_multi = pd.DataFrame(multi_data)
-                multi_file = f"{base_path}_multichannel_analysis.csv"
-                df_multi.to_csv(multi_file, index=False)
-                exported_files.append(multi_file)
+            for pair_key, results in multi_results.items():
+                base_row = {'channel_pair': pair_key}
+                
+                # Colocalization metrics
+                if 'colocalization' in results:
+                    coloc_row = base_row.copy()
+                    coloc_metrics = results['colocalization']
+                    coloc_row.update({
+                        'overlap_pixels': coloc_metrics.get('overlap_pixels', 0),
+                        'ch1_pixels': coloc_metrics.get('ch1_pixels', 0),
+                        'ch2_pixels': coloc_metrics.get('ch2_pixels', 0),
+                        'overlap_percentage': coloc_metrics.get('overlap_percentage', 0),
+                        'manders_m1': coloc_metrics.get('manders_m1', 0),
+                        'manders_m2': coloc_metrics.get('manders_m2', 0),
+                        'manders_average': coloc_metrics.get('manders_average', 0),
+                        'pearson_correlation': coloc_metrics.get('pearson_correlation', 0),
+                        'overlap_coefficient': coloc_metrics.get('overlap_coefficient', 0),
+                        'intensity_correlation_quotient': coloc_metrics.get('intensity_correlation_quotient', 0)
+                    })
+                    coloc_data.append(coloc_row)
+                
+                # Distance analysis metrics
+                if 'distance_analysis' in results:
+                    dist_row = base_row.copy()
+                    dist_metrics = results['distance_analysis']
+                    dist_row.update({
+                        'mean_nearest_distance_1to2': dist_metrics.get('mean_nearest_distance_1to2', 0),
+                        'mean_nearest_distance_2to1': dist_metrics.get('mean_nearest_distance_2to1', 0),
+                        'median_nearest_distance_1to2': dist_metrics.get('median_nearest_distance_1to2', 0),
+                        'median_nearest_distance_2to1': dist_metrics.get('median_nearest_distance_2to1', 0),
+                        'min_distance': dist_metrics.get('min_distance', 0),
+                        'objects_within_threshold_1to2': dist_metrics.get('objects_within_threshold_1to2', 0),
+                        'objects_within_threshold_2to1': dist_metrics.get('objects_within_threshold_2to1', 0),
+                        'percentage_close_1to2': dist_metrics.get('percentage_close_1to2', 0),
+                        'percentage_close_2to1': dist_metrics.get('percentage_close_2to1', 0),
+                        'total_objects_ch1': dist_metrics.get('total_objects_ch1', 0),
+                        'total_objects_ch2': dist_metrics.get('total_objects_ch2', 0)
+                    })
+                    distance_data.append(dist_row)
+                
+                # Object overlap analysis
+                if 'object_overlap' in results:
+                    overlap_row = base_row.copy()
+                    overlap_metrics = results['object_overlap']
+                    overlap_row.update({
+                        'total_overlapping_objects': overlap_metrics.get('total_overlaps', 0),
+                        'mean_overlap_fraction': overlap_metrics.get('mean_overlap_fraction', 0)
+                    })
+                    overlap_data.append(overlap_row)
+            
+            # Export separate files for different analysis types
+            if coloc_data:
+                df_coloc = pd.DataFrame(coloc_data)
+                coloc_file = f"{base_path}_colocalization_analysis.csv"
+                df_coloc.to_csv(coloc_file, index=False)
+                exported_files.append(coloc_file)
+            
+            if distance_data:
+                df_dist = pd.DataFrame(distance_data)
+                dist_file = f"{base_path}_distance_analysis.csv"
+                df_dist.to_csv(dist_file, index=False)
+                exported_files.append(dist_file)
+            
+            if overlap_data:
+                df_overlap = pd.DataFrame(overlap_data)
+                overlap_file = f"{base_path}_object_overlap_analysis.csv"
+                df_overlap.to_csv(overlap_file, index=False)
+                exported_files.append(overlap_file)
+            
+            # ENHANCED: Detailed object-to-object overlap data
+            for pair_key, results in multi_results.items():
+                if 'object_overlap' in results and results['object_overlap'].get('overlap_pairs'):
+                    overlap_pairs = results['object_overlap']['overlap_pairs']
+                    df_pairs = pd.DataFrame(overlap_pairs)
+                    pairs_file = f"{base_path}_object_pairs_{pair_key}.csv"
+                    df_pairs.to_csv(pairs_file, index=False)
+                    exported_files.append(pairs_file)
         
         return exported_files
+
     
     def export_json_results(self, base_path, single_results, multi_results, parameters):
         """Export complete results as JSON"""
@@ -372,7 +437,7 @@ class ResultExporter:
             for group_result in batch_results:
                 base_name = group_result['base_name']
                 
-                # Single channel data
+                # Single channel data (keeping as is)
                 for channel, channel_results in group_result['single_channel_results'].items():
                     if channel_results:
                         # Objects
@@ -394,17 +459,55 @@ class ResultExporter:
                         }
                         all_summaries.append(summary)
                 
-                # Multi-channel data
+                # Multi-channel data - UPDATED IMPLEMENTATION
                 for pair_key, pair_results in group_result['multichannel_results'].items():
-                    multi_row = {
+                    row = {
                         'image_group': base_name,
                         'channel_pair': pair_key
                     }
+                    
+                    # Flatten colocalization data
                     if 'colocalization' in pair_results:
-                        multi_row.update(pair_results['colocalization'])
+                        coloc = pair_results['colocalization']
+                        row.update({
+                            'overlap_pixels': coloc.get('overlap_pixels', 0),
+                            'ch1_pixels': coloc.get('ch1_pixels', 0),
+                            'ch2_pixels': coloc.get('ch2_pixels', 0),
+                            'overlap_percentage': coloc.get('overlap_percentage', 0),
+                            'manders_m1': coloc.get('manders_m1', 0),
+                            'manders_m2': coloc.get('manders_m2', 0),
+                            'manders_average': coloc.get('manders_average', 0),
+                            'pearson_correlation': coloc.get('pearson_correlation', 0),
+                            'overlap_coefficient': coloc.get('overlap_coefficient', 0),
+                            'intensity_correlation_quotient': coloc.get('intensity_correlation_quotient', 0)
+                        })
+                    
+                    # Flatten distance analysis data
                     if 'distance_analysis' in pair_results:
-                        multi_row.update(pair_results['distance_analysis'])
-                    all_multichannel.append(multi_row)
+                        dist = pair_results['distance_analysis']
+                        row.update({
+                            'mean_nearest_distance_1to2': dist.get('mean_nearest_distance_1to2', 0),
+                            'mean_nearest_distance_2to1': dist.get('mean_nearest_distance_2to1', 0),
+                            'median_nearest_distance_1to2': dist.get('median_nearest_distance_1to2', 0),
+                            'median_nearest_distance_2to1': dist.get('median_nearest_distance_2to1', 0),
+                            'min_distance': dist.get('min_distance', 0),
+                            'objects_within_threshold_1to2': dist.get('objects_within_threshold_1to2', 0),
+                            'objects_within_threshold_2to1': dist.get('objects_within_threshold_2to1', 0),
+                            'percentage_close_1to2': dist.get('percentage_close_1to2', 0),
+                            'percentage_close_2to1': dist.get('percentage_close_2to1', 0),
+                            'total_objects_ch1': dist.get('total_objects_ch1', 0),
+                            'total_objects_ch2': dist.get('total_objects_ch2', 0)
+                        })
+                    
+                    # Flatten object overlap data (if using enhanced analyzer)
+                    if 'object_overlap' in pair_results:
+                        overlap = pair_results['object_overlap']
+                        row.update({
+                            'total_overlapping_objects': overlap.get('total_overlaps', 0),
+                            'mean_overlap_fraction': overlap.get('mean_overlap_fraction', 0)
+                        })
+                    
+                    all_multichannel.append(row)
             
             # Export based on selected options
             prefix = f"FluoroQuant_batch_{self.timestamp}"
@@ -428,15 +531,15 @@ class ResultExporter:
                     exported_files.append(summary_file)
                     print(f"Exported summary CSV: {summary_file}")
                 
-                # Multi-channel
+                # Multi-channel - UPDATED: Better filename
                 if all_multichannel:
                     df_multi = pd.DataFrame(all_multichannel)
-                    multi_file = os.path.join(output_folder, f"{prefix}_multichannel.csv")
+                    multi_file = os.path.join(output_folder, f"{prefix}_multichannel_analysis.csv")
                     df_multi.to_csv(multi_file, index=False)
                     exported_files.append(multi_file)
-                    print(f"Exported multichannel CSV: {multi_file}")
+                    print(f"Exported consolidated multichannel CSV: {multi_file}")
             
-            # JSON export
+            # JSON export (keeping as is)
             if options.get('export_json', True):
                 print("Exporting batch JSON file...")
                 complete_batch = {
@@ -457,7 +560,7 @@ class ResultExporter:
                 exported_files.append(json_file)
                 print(f"Exported JSON: {json_file}")
             
-            # Excel export
+            # Excel export (keeping as is)
             if options.get('export_excel', False):
                 print("Exporting batch Excel file...")
                 excel_file = self.export_batch_excel(
@@ -468,7 +571,6 @@ class ResultExporter:
                     print(f"Exported Excel: {excel_file}")
             
             # Note: Images and overlays are not typically exported in batch mode
-            # as it would create too many files, but we could add this if needed
             if options.get('export_images', False):
                 print("Note: Individual images not exported in batch mode to avoid excessive files")
             
@@ -480,7 +582,6 @@ class ResultExporter:
             import traceback
             traceback.print_exc()
             return []
-
     
     def export_batch_excel(self, output_folder, prefix, objects, summaries, multichannel):
         """Export batch results as Excel file"""

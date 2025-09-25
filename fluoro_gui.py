@@ -923,81 +923,33 @@ class FluoroGUI:
         ax_hist = self.axes[1, 1]
         
         ax_hist.clear()
-        ax_hist.cla()
         
         try:
-            # Validate data before creating histogram
-            if len(image_data) == 0 or np.all(np.isnan(image_data)):
-                raise ValueError("No valid image data for histogram")
+            ax_hist.cla()
+            ax_hist.remove()
+            ax_hist = self.fig.add_subplot(2, 3, 5) 
+            self.axes[1, 1] = ax_hist
             
-            # Remove any NaN or infinite values
+            # Validate data
             valid_data = image_data[np.isfinite(image_data)]
-            
             if len(valid_data) == 0:
-                raise ValueError("No finite values in image data")
+                raise ValueError("No valid data")
             
-            # Calculate appropriate number of bins
-            data_range = np.max(valid_data) - np.min(valid_data)
-            if data_range == 0:
-                n_bins = 1
-            else:
-                n_bins = min(50, max(10, int(len(np.unique(valid_data)))))
+            ax_hist.hist(valid_data, bins=30, alpha=0.8, 
+                        color=self.colors[f'{channel}_color'])
             
-            # Create histogram with error handling
-            counts, bins, patches = ax_hist.hist(
-                valid_data,
-                bins=n_bins,
-                alpha=0.8,
-                color=self.colors[f'{channel}_color'],
-                edgecolor='black',  # Add edge for visibility
-                linewidth=0.5,
-                density=False,  # Use counts instead of density
-                histtype='bar'
-            )
-            
-            # Verify the histogram was created successfully
-            if len(patches) == 0:
-                raise ValueError("Histogram creation failed - no patches created")
-            
-            # Force visibility of all patches
-            for patch in patches:
-                patch.set_visible(True)
-                patch.set_alpha(0.8)
-                patch.set_facecolor(self.colors[f'{channel}_color'])
-            
-            # Set up axis properties
+            ax_hist.set_title('Histogram', color=self.colors['fg'])
             ax_hist.set_facecolor(self.colors['bg'])
-            ax_hist.set_title('Histogram', color=self.colors['fg'], fontsize=10)
-            ax_hist.set_xlabel('Intensity', color=self.colors['fg'], fontsize=9)
-            ax_hist.set_ylabel('Count', color=self.colors['fg'], fontsize=9)
-            
-            # Apply consistent styling
             self._style_axis(ax_hist)
-            
-            # Set explicit axis limits to ensure visibility
-            x_margin = data_range * 0.02 if data_range > 0 else 0.01
-            ax_hist.set_xlim([np.min(valid_data) - x_margin, np.max(valid_data) + x_margin])
-            
-            y_max = np.max(counts)
-            ax_hist.set_ylim([0, y_max * 1.1 if y_max > 0 else 1])
-            
-            # Force the axis to recalculate its layout
-            ax_hist.relim()
-            ax_hist.autoscale_view(tight=False)
-            
-            print(f"Histogram successfully created for {channel}: {len(counts)} bins, max count: {np.max(counts)}")
             
         except Exception as e:
-            print(f"Histogram creation error: {e}")
-            # Fallback - create simple text message
-            ax_hist.clear()
-            ax_hist.text(0.5, 0.5, f"Histogram\n{channel}\nData range: {np.min(image_data):.3f} - {np.max(image_data):.3f}",
-                        ha='center', va='center',
-                        transform=ax_hist.transAxes,
-                        color=self.colors['fg'],
-                        fontsize=9)
+            print(f"Histogram error: {e}")
+            # Recreate subplot
+            ax_hist = self.fig.add_subplot(2, 3, 5)
+            self.axes[1, 1] = ax_hist
+            ax_hist.text(0.5, 0.5, f"Histogram unavailable\n{channel}", 
+                        ha='center', va='center', color=self.colors['fg'])
             ax_hist.set_facecolor(self.colors['bg'])
-            self._style_axis(ax_hist)
         
         # Clear unused subplot
         ax = self.axes[1, 2]
@@ -1018,7 +970,7 @@ class FluoroGUI:
                                 color=self.colors['fg'])
             return
         
-        # Check if we have multichannel results AND user has selected channel pairs
+        # Check multichannel results AND selected channel pairs
         params = self.get_multichannel_parameters()
         has_selected_pairs = (
             (params['pairs']['ch1_ch2'] and 'ch1' in active and 'ch2' in active) or

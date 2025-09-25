@@ -11,14 +11,18 @@ import matplotlib
 matplotlib.use('TkAgg')
 import numpy as np
 import os
+import multiprocessing as mp
+
 
 # Import our modules
 try:
     from fluoro_processor import ImageProcessor
     from fluoro_analyzer import MultiChannelAnalyzer
     from fluoro_gui import FluoroGUI
-    from fluoro_batch import BatchProcessor
+    from fluoro_batch import BatchProcessor, BatchConfig
     from fluoro_export import ResultExporter
+    from fluoro_memory import LRUImageCache, MemoryMonitor
+
 except ImportError as e:
     print(f"Import error: {e}")
     print("Make sure all module files are in the same directory:")
@@ -31,14 +35,23 @@ except ImportError as e:
 
 
 class FluoroQuant:
-    """Main application class for multi-channel fluorescence analysis"""
-    
+    '''Main method to utilize flourescnet quantification analysis and results'''
     def __init__(self):
-        # Initialize core components
+                
+        # Configure batch processor for optimal performance
+        batch_config = BatchConfig(
+            max_workers=mp.cpu_count() - 1,  # Leave one core free
+            memory_limit_gb=8.0,
+            chunk_size=1,
+            use_shared_memory=True
+        )
+        
         self.processor = ImageProcessor()
         self.analyzer = MultiChannelAnalyzer()
-        self.batch_processor = BatchProcessor()
         self.exporter = ResultExporter()
+        self.batch_processor = BatchProcessor(batch_config)
+        self.memory_monitor = MemoryMonitor(threshold_percent=80)
+        self.image_cache = LRUImageCache(max_memory_mb=512)
         self.gui = FluoroGUI(self)
         
         # Data storage for loaded images
@@ -92,11 +105,15 @@ class FluoroQuant:
                 
                 # Learn naming pattern for batch processing
                 self.batch_processor.learn_pattern(channel, filepath, self.learned_patterns)
-                self.update_base_pattern()
+                self.update_base_pattern()  # This should enable the button
                 
                 # Update GUI
                 self.gui.update_channel_status(channel, filepath)
                 self.gui.enable_processing_buttons()
+                
+                loaded_count = sum(1 for fp in self.channel_filepaths.values() if fp is not None)
+                if loaded_count >= 2:  # Add this check
+                    self.gui.enable_batch_folder_selection()
                 
                 # Auto-process if enabled
                 if self.gui.auto_update_var and self.gui.auto_update_var.get():
@@ -220,19 +237,47 @@ class FluoroQuant:
             import traceback
             traceback.print_exc()
             self.gui.show_error(f"Analysis error: {str(e)}")
-    
+            
     def update_base_pattern(self):
         """Update base pattern from loaded channels"""
-        if len([fp for fp in self.channel_filepaths.values() if fp is not None]) >= 2:
+        loaded_files = {ch: fp for ch, fp in self.channel_filepaths.items() if fp is not None}
+        
+        if len(loaded_files) >= 2:
             self.base_pattern = self.batch_processor.extract_base_pattern(
                 self.channel_filepaths, self.learned_patterns
             )
             
             if self.base_pattern:
                 self.gui.update_pattern_display(self.base_pattern)
-                self.gui.enable_batch_folder_selection()
+                
+            # Enable batch folder selection regardless of pattern success
+            self.gui.enable_batch_folder_selection()
+            print(f"Base pattern updated, batch folder selection enabled")
     
     def select_batch_folder(self, folder_path):
+        """Select folder for batch processing"""
+        try:
+            self.batch_folder = folder_path
+            
+            # Debug: Print current state
+            print(f"Base pattern: {self.base_pattern}")
+            print(f"Active channels: {self.active_channels}")
+            print(f"Learned patterns: {self.learned_patterns}")
+            
+            # Detect image groups using learned pattern
+            if self.base_pattern:
+                print("Using learned pattern...")
+                self.detected_groups = self.batch_processor.apply_pattern_to_folder(
+                    folder_path, self.base_pattern, self.active_channels
+                )
+            else:
+                print("Using fallback pattern detection...")
+                self.detected_groups = self.batch_processor.detect_pattern_fallback(folder_path)
+            #Debug:
+            #print(f"Detected groups: {self.detected_groups}")
+        except Exception as e:
+            self.gui.show_error(f"Error selecting batch folder: {str(e)}")
+            print(f"Batch folder selection error: {e}")
         """Select folder for batch processing"""
         try:
             self.batch_folder = folder_path
@@ -313,78 +358,6 @@ class FluoroQuant:
         except Exception as e:
             print(f"Error handling batch completion: {e}")
     
-    def process_current_image(self, full_process=True):
-        """Process loaded images with current parameters"""
-        if self.is_processing:
-            print("Already processing, skipping request")
-            return
-            
-        if not any(self.active_channels.values()):
-            print("No active channels found")
-            self.gui.show_warning("No active channels to process.")
-            return
-            
-        self.is_processing = True
-        print(f"Starting image processing. Full process: {full_process}")
-        
-        try:
-            params = self.gui.get_processing_parameters()
-            
-            if full_process:
-                print("Processing images...")
-            
-            # Process each active channel
-            processed_any = False
-            for channel in ['ch1', 'ch2', 'ch3']:
-                if self.active_channels[channel] and self.channels[channel] is not None:
-                    processed_any = True
-                    if full_process:
-                        print(f"Processing {channel}...")
-                    
-                    # Preprocessing pipeline
-                    processed = self.processor.preprocess_image(
-                        self.channels[channel], 
-                        params['preprocessing']
-                    )
-                    self.processed_channels[channel] = processed
-                    
-                    # Generate binary mask
-                    binary = self.processor.threshold_image(
-                        processed,
-                        params['thresholding']
-                    )
-                    self.binary_masks[channel] = binary
-                    
-                    # Identify and label objects
-                    labeled = self.processor.label_objects(
-                        binary,
-                        params['thresholding']['min_size'],
-                        params['thresholding']['max_size']
-                    )
-                    self.labeled_objects[channel] = labeled
-            
-            if not processed_any:
-                print("No channels were processed")
-                self.gui.show_warning("No channels were available for processing.")
-                return
-            
-            if full_process:
-                self.analyze_results()
-                self.gui.update_statistics(self.quantitative_results, self.multichannel_results)
-            
-            self.gui.update_preview_display(self)
-            
-            if full_process:
-                print("Processing complete.")
-            
-        except Exception as e:
-            self.gui.show_error(f"Processing error: {str(e)}")
-            print(f"Processing error: {e}")
-            import traceback
-            traceback.print_exc()
-        finally:
-            self.is_processing = False
-
     def export_results(self, export_type='current'):
         """Export analysis results"""
         try:
